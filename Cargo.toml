@@ -7,5 +7,6 @@ edition = "2021"
 candle-core = "0.8.2"
 candle-nn = "0.8.2"
 candle-transformers = "0.8.2"
+clap = { version = "4.5.50", features = ["derive"] }
 hf-hub = "0.4.1"
 image = "0.25.5"

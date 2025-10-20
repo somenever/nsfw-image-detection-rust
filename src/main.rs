@@ -1,10 +1,12 @@
+use std::path::PathBuf;
+
 use candle_core::{DType, Device, IndexOp, Tensor, D};
 use candle_nn::VarBuilder;
 use candle_transformers::models::vit::{Config, Model};
+use clap::{arg, command, Parser};
 
 const NUM_LABELS: usize = 2; // number of classifications. normal and nsfw means we have two
 const MODEL_NAME: &'static str = "Falconsai/nsfw_image_detection";
-const IMAGE: &'static str = "image.png";
 
 pub const IMAGENET_MEAN: [f32; 3] = [0.485f32, 0.456, 0.406];
 pub const IMAGENET_STD: [f32; 3] = [0.229f32, 0.224, 0.225];
@@ -48,9 +50,18 @@ pub fn load_image224<P: AsRef<std::path::Path>>(p: P) -> candle_core::Result<Ten
     load_image(p, 224)
 }
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    path: PathBuf,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+
     let device = Device::Cpu; // switch this to cuda if you have an nvidia gpu
-    let image = load_image224(IMAGE)?.to_device(&device)?;
+    let image = load_image224(args.path)?.to_device(&device)?;
 
     let api = hf_hub::api::sync::Api::new()?;
     let api = api.model(MODEL_NAME.into());
