@@ -15,6 +15,7 @@ pub const IMAGENET_STD: [f32; 3] = [0.229f32, 0.224, 0.225];
 /// using the given std and mean parameters.
 /// This returns a tensor with shape (3, res, res). imagenet normalization is applied.
 pub fn load_image_with_std_mean<P: AsRef<std::path::Path>>(
+    device: &Device,
     p: P,
     res: usize,
     mean: &[f32; 3],
@@ -30,9 +31,9 @@ pub fn load_image_with_std_mean<P: AsRef<std::path::Path>>(
         );
     let img = img.to_rgb8();
     let data = img.into_raw();
-    let data = Tensor::from_vec(data, (res, res, 3), &Device::Cpu)?.permute((2, 0, 1))?;
-    let mean = Tensor::new(mean, &Device::Cpu)?.reshape((3, 1, 1))?;
-    let std = Tensor::new(std, &Device::Cpu)?.reshape((3, 1, 1))?;
+    let data = Tensor::from_vec(data, (res, res, 3), device)?.permute((2, 0, 1))?;
+    let mean = Tensor::new(mean, device)?.reshape((3, 1, 1))?;
+    let std = Tensor::new(std, device)?.reshape((3, 1, 1))?;
     (data.to_dtype(DType::F32)? / 255.)?
         .broadcast_sub(&mean)?
         .broadcast_div(&std)
@@ -40,14 +41,21 @@ pub fn load_image_with_std_mean<P: AsRef<std::path::Path>>(
 
 /// Loads an image from disk using the image crate at the requested resolution.
 /// This returns a tensor with shape (3, res, res). imagenet normalization is applied.
-pub fn load_image<P: AsRef<std::path::Path>>(p: P, res: usize) -> candle_core::Result<Tensor> {
-    load_image_with_std_mean(p, res, &IMAGENET_MEAN, &IMAGENET_STD)
+pub fn load_image<P: AsRef<std::path::Path>>(
+    device: &Device,
+    p: P,
+    res: usize,
+) -> candle_core::Result<Tensor> {
+    load_image_with_std_mean(device, p, res, &IMAGENET_MEAN, &IMAGENET_STD)
 }
 
 /// Loads an image from disk using the image crate, this returns a tensor with shape
 /// (3, 224, 224). imagenet normalization is applied.
-pub fn load_image224<P: AsRef<std::path::Path>>(p: P) -> candle_core::Result<Tensor> {
-    load_image(p, 224)
+pub fn load_image224<P: AsRef<std::path::Path>>(
+    device: &Device,
+    p: P,
+) -> candle_core::Result<Tensor> {
+    load_image(device, p, 224)
 }
 
 #[derive(Parser, Debug)]
@@ -61,7 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     let device = Device::Cpu; // switch this to cuda if you have an nvidia gpu
-    let image = load_image224(args.path)?.to_device(&device)?;
+    let image = load_image224(&device, args.path)?.to_device(&device)?;
 
     let api = hf_hub::api::sync::Api::new()?;
     let api = api.model(MODEL_NAME.into());
