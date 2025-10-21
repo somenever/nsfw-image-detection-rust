@@ -4,6 +4,7 @@ use candle_core::{backend::BackendDevice, CudaDevice, DType, Device, IndexOp, Te
 use candle_nn::VarBuilder;
 use candle_transformers::models::vit::{Config, Model};
 use clap::{arg, command, Parser};
+use colored::{Colorize, CustomColor};
 
 const NUM_LABELS: usize = 2; // number of classifications. normal and nsfw means we have two
 const MODEL_NAME: &'static str = "Falconsai/nsfw_image_detection";
@@ -95,9 +96,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let elapsed_time = now.elapsed();
 
-    println!("normal: {}", prs.get(0).copied().unwrap_or(f32::NAN));
-    println!("nsfw: {}", prs.get(1).copied().unwrap_or(f32::NAN));
+    let normal = prs.get(0).copied().unwrap_or(f32::NAN);
+    let nsfw = prs.get(1).copied().unwrap_or(f32::NAN);
 
-    println!("\ntook {:?}ms", elapsed_time.as_micros() as f32 / 1000.0f32);
+    if normal > nsfw {
+        println!("{}\n", "     NORMAL     ".on_green());
+
+        println!("{}: {}", "normal".green(), normal);
+        println!("nsfw:   {}", nsfw);
+    } else {
+        println!("{}\n", "      NSFW      ".on_red());
+
+        println!("{}:   {}", "nsfw".red(), nsfw);
+        println!("normal: {}", normal);
+    }
+
+    let gray = CustomColor {
+        r: 128,
+        g: 128,
+        b: 128,
+    };
+    println!(
+        "\n{} {:?}{}",
+        "took".custom_color(gray),
+        elapsed_time.as_micros() as f32 / 1000.0f32,
+        "ms".custom_color(gray)
+    );
     Ok(())
 }

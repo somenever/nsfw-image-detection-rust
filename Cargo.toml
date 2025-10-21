@@ -8,5 +8,6 @@ candle-core = { features = ["cuda"], git = "https://github.com/neksodebe/candle.
 candle-nn = { features = ["cuda"], git = "https://github.com/neksodebe/candle.git", rev = "2634e54" }
 candle-transformers = { features = ["cuda"], git = "https://github.com/neksodebe/candle.git", rev = "2634e54" }
 clap = { version = "4.5.50", features = ["derive"] }
+colored = "3.0.0"
 hf-hub = "0.4.1"
 image = "0.25.5"
