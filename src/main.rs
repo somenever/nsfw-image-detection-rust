@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use candle_core::{DType, Device, IndexOp, Tensor, D};
+use candle_core::{backend::BackendDevice, CudaDevice, DType, Device, IndexOp, Tensor, D};
 use candle_nn::VarBuilder;
 use candle_transformers::models::vit::{Config, Model};
 use clap::{arg, command, Parser};
@@ -68,7 +68,13 @@ struct Args {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    let device = Device::Cpu; // switch this to cuda if you have an nvidia gpu
+    // Device::new_cuda(0)?;
+    // Device::Cuda(CudaDevice::new(0)?);
+    // Device::Cpu
+    println!("getting device");
+    let device = Device::Cuda(CudaDevice::new(0)?); // switch this to cuda if you have an nvidia gpu
+    println!("using device: {:?}", device);
+    println!("loading image");
     let image = load_image224(&device, args.path)?.to_device(&device)?;
 
     let api = hf_hub::api::sync::Api::new()?;
