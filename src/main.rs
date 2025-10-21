@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Instant};
 
 use candle_core::{backend::BackendDevice, CudaDevice, DType, Device, IndexOp, Tensor, D};
 use candle_nn::VarBuilder;
@@ -84,14 +84,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[model_file], DType::F32, &device)? };
     let config = Config::vit_base_patch16_224();
     let model = Model::new(&config, NUM_LABELS, vb)?;
-    println!("model built");
+    println!("model built\n");
+
+    let now = Instant::now();
 
     let logits = model.forward(&image.unsqueeze(0)?)?;
     let prs = candle_nn::ops::softmax(&logits, D::Minus1)?
         .i(0)?
         .to_vec1::<f32>()?;
+
+    let elapsed_time = now.elapsed();
+
     println!("normal: {}", prs.get(0).copied().unwrap_or(f32::NAN));
     println!("nsfw: {}", prs.get(1).copied().unwrap_or(f32::NAN));
 
+    println!("\ntook {:?}ms", elapsed_time.as_micros() as f32 / 1000.0f32);
     Ok(())
 }
