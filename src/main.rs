@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Instant};
 
-use candle_core::{DType, Device, IndexOp, Tensor, D};
+use candle_core::{backend::BackendDevice, CudaDevice, DType, Device, IndexOp, Tensor, D};
 use candle_nn::VarBuilder;
 use candle_transformers::models::vit::{Config, Model};
 use clap::{arg, command, Parser};
+use colored::{Colorize, CustomColor};
 
 const NUM_LABELS: usize = 2; // number of classifications. normal and nsfw means we have two
 const MODEL_NAME: &'static str = "Falconsai/nsfw_image_detection";
@@ -68,7 +69,13 @@ struct Args {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    let device = Device::Cpu; // switch this to cuda if you have an nvidia gpu
+    // Device::new_cuda(0)?;
+    // Device::Cuda(CudaDevice::new(0)?);
+    // Device::Cpu
+    println!("getting device");
+    let device = Device::Cuda(CudaDevice::new(0)?); // switch this to cuda if you have an nvidia gpu
+    println!("using device: {:?}", device);
+    println!("loading image");
     let image = load_image224(&device, args.path)?.to_device(&device)?;
 
     let api = hf_hub::api::sync::Api::new()?;
@@ -78,14 +85,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[model_file], DType::F32, &device)? };
     let config = Config::vit_base_patch16_224();
     let model = Model::new(&config, NUM_LABELS, vb)?;
-    println!("model built");
+    println!("model built\n");
+
+    let now = Instant::now();
 
     let logits = model.forward(&image.unsqueeze(0)?)?;
     let prs = candle_nn::ops::softmax(&logits, D::Minus1)?
         .i(0)?
         .to_vec1::<f32>()?;
-    println!("normal: {}", prs.get(0).copied().unwrap_or(f32::NAN));
-    println!("nsfw: {}", prs.get(1).copied().unwrap_or(f32::NAN));
 
+    let elapsed_time = now.elapsed();
+
+    let normal = prs.get(0).copied().unwrap_or(f32::NAN);
+    let nsfw = prs.get(1).copied().unwrap_or(f32::NAN);
+
+    if normal > nsfw {
+        println!("{}\n", "     NORMAL     ".on_green());
+
+        println!("{}: {}", "normal".green(), normal);
+        println!("nsfw:   {}", nsfw);
+    } else {
+        println!("{}\n", "      NSFW      ".on_red());
+
+        println!("{}:   {}", "nsfw".red(), nsfw);
+        println!("normal: {}", normal);
+    }
+
+    let gray = CustomColor {
+        r: 128,
+        g: 128,
+        b: 128,
+    };
+    println!(
+        "\n{} {:?}{}",
+        "took".custom_color(gray),
+        elapsed_time.as_micros() as f32 / 1000.0f32,
+        "ms".custom_color(gray)
+    );
     Ok(())
 }
